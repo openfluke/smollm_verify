@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmolLM2 WASM Token Verification</title>
+    <style>
+        :root {
+            --bg: #0f0f1a;
+            --card: #1a1a2e;
+            --accent: #6366f1;
+            --accent-glow: rgba(99, 102, 241, 0.3);
+            --success: #10b981;
+            --error: #ef4444;
+            --text: #e2e8f0;
+            --text-muted: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, var(--accent), #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: var(--text-muted);
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--card);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .card h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+
+        .status-pending {
+            background: #fbbf24;
+        }
+
+        .status-loading {
+            background: #3b82f6;
+            animation: pulse 1s infinite;
+        }
+
+        .status-ready {
+            background: var(--success);
+        }
+
+        .status-error {
+            background: var(--error);
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.5;
+            }
+        }
+
+        .btn {
+            background: linear-gradient(135deg, var(--accent), #8b5cf6);
+            border: none;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 20px var(--accent-glow);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: var(--text);
+            font-size: 1rem;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .output-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.9rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .token-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+
+        .token {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.5);
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+        }
+
+        .comparison {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .comparison-col h3 {
+            margin-bottom: 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+        }
+
+        .match {
+            color: var(--success);
+        }
+
+        .mismatch {
+            color: var(--error);
+        }
+
+        .progress-bar {
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+            margin-top: 1rem;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent), #a855f7);
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        #log {
+            max-height: 200px;
+            overflow-y: auto;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        #log .error {
+            color: var(--error);
+        }
+
+        #log .success {
+            color: var(--success);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🧠 SmolLM2 WASM Verification</h1>
+        <p class="subtitle">Compare token generation: Native Go vs WebAssembly</p>
+
+        <div class="card">
+            <h2>
+                <span class="status-indicator status-pending" id="wasmStatus"></span>
+                WASM Module Status
+            </h2>
+            <div id="wasmInfo">Initializing...</div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="loadProgress"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📝 Generate Tokens</h2>
+            <div class="input-group">
+                <input type="text" id="promptInput" value="Once upon a time" placeholder="Enter prompt...">
+                <input type="number" id="tokenCount" value="10" min="1" max="100" style="width: 100px;">
+                <button class="btn" id="generateBtn" disabled onclick="generateTokens()">Generate</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📊 Results</h2>
+            <div class="comparison">
+                <div class="comparison-col">
+                    <h3>Expected (Backend)</h3>
+                    <div class="output-box" id="backendOutput">Waiting for generation...</div>
+                </div>
+                <div class="comparison-col">
+                    <h3>WASM (Browser)</h3>
+                    <div class="output-box" id="wasmOutput">Waiting for generation...</div>
+                </div>
+            </div>
+            <div id="comparisonResult" style="margin-top: 1rem; text-align: center;"></div>
+        </div>
+
+        <div class="card">
+            <h2>📋 Token IDs</h2>
+            <div class="comparison">
+                <div class="comparison-col">
+                    <h3>Expected Tokens</h3>
+                    <div class="token-list" id="backendTokens"></div>
+                </div>
+                <div class="comparison-col">
+                    <h3>WASM Tokens</h3>
+                    <div class="token-list" id="wasmTokens"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" style="border: 2px solid #f59e0b;">
+            <h2>🎓 Training Demo</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">Train WASM and Backend on DIFFERENT text to see
+                model divergence!</p>
+            <div class="comparison">
+                <div class="comparison-col">
+                    <h3>Backend Training Text</h3>
+                    <input type="text" id="backendTrainText" value="The cat sat on the mat and purred loudly."
+                        style="width: 100%; margin-bottom: 0.5rem;">
+                </div>
+                <div class="comparison-col">
+                    <h3>WASM Training Text</h3>
+                    <input type="text" id="wasmTrainText" value="The dog ran in the park and barked happily."
+                        style="width: 100%; margin-bottom: 0.5rem;">
+                </div>
+            </div>
+            <div class="input-group" style="margin-top: 1rem;">
+                <label>Steps:</label>
+                <input type="number" id="trainSteps" value="5" min="1" max="50" style="width: 80px;">
+                <label>LR:</label>
+                <input type="number" id="learningRate" value="0.1" step="0.00001" style="width: 100px;">
+                <button class="btn" id="trainBtn" disabled onclick="trainModels()"
+                    style="background: linear-gradient(135deg, #f59e0b, #ef4444);">🎓 Train Both</button>
+            </div>
+            <div id="trainStatus" style="margin-top: 0.5rem; font-size: 0.9rem; color: var(--text-muted);"></div>
+        </div>
+
+        <div class="card" style="border: 2px solid #ef4444;">
+            <h2>📊 Post-Training Results</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">After training on different data, outputs should
+                DIVERGE!</p>
+            <div class="comparison">
+                <div class="comparison-col">
+                    <h3>Backend (Post-Train)</h3>
+                    <div class="output-box" id="postBackendOutput">Train first, then generate...</div>
+                </div>
+                <div class="comparison-col">
+                    <h3>WASM (Post-Train)</h3>
+                    <div class="output-box" id="postWasmOutput">Train first, then generate...</div>
+                </div>
+            </div>
+            <div id="postComparisonResult" style="margin-top: 1rem; text-align: center;"></div>
+            <div style="margin-top: 1rem; text-align: center;">
+                <button class="btn" id="regenerateBtn" disabled onclick="regenerateTokens()"
+                    style="background: linear-gradient(135deg, #ef4444, #dc2626);">🔄 Regenerate After Training</button>
+            </div>
+        </div>
+
+        <div class="card">
+            <h2>📝 Log</h2>
+            <div class="output-box" id="log"></div>
+        </div>
+    </div>
+
+    <script src="wasm_exec.js"></script>
+    <script>
+        // Backend expected results (from running go run backend.go)
+        const BACKEND_RESULTS = {
+            prompt: "Once upon a time",
+            inputTokens: [6403, 25705, 81, 2256],
+            generatedTokens: [], // Will be filled from SSE
+            generatedText: ""
+        };
+
+        const BACKEND_URL = '';  // Same origin - use /api/ endpoints
+
+        let wasmReady = false;
+        let backendReady = false;
+
+        function log(msg, type = '') {
+            const logEl = document.getElementById('log');
+            const line = document.createElement('div');
+            line.className = type;
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+            logEl.appendChild(line);
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        function updateProgress(pct) {
+            document.getElementById('loadProgress').style.width = pct + '%';
+        }
+
+        function setStatus(status, msg) {
+            const el = document.getElementById('wasmStatus');
+            el.className = 'status-indicator status-' + status;
+            document.getElementById('wasmInfo').textContent = msg;
+        }
+
+        // Check backend status
+        async function checkBackend() {
+            try {
+                const resp = await fetch('/api/status');
+                const data = await resp.json();
+                if (data.ready) {
+                    backendReady = true;
+                    log(`Backend ready! Layers: ${data.layers}`, 'success');
+                    return true;
+                }
+            } catch (e) {
+                log('Backend not available (run: go run server.go)', 'error');
+            }
+            return false;
+        }
+
+        async function loadWASM() {
+            try {
+                log('Loading WASM module...');
+                setStatus('loading', 'Loading WASM module...');
+
+                updateProgress(10);
+
+                const go = new Go();
+                const result = await WebAssembly.instantiateStreaming(
+                    fetch('main.wasm'),
+                    go.importObject
+                );
+
+                updateProgress(30);
+                log('WASM instantiated, starting Go runtime...');
+
+                go.run(result.instance);
+
+                await new Promise(r => setTimeout(r, 100));
+
+                updateProgress(40);
+                log('Loading tokenizer...');
+                setStatus('loading', 'Loading tokenizer...');
+
+                // Load tokenizer
+                const tokenizerResp = await fetch('/models/SmolLM2-135M-Instruct/tokenizer.json');
+                const tokenizerJSON = await tokenizerResp.text();
+
+                const tokResult = JSON.parse(initTokenizer(tokenizerJSON));
+                if (tokResult.error) throw new Error(tokResult.error);
+                log(`Tokenizer loaded (vocab: ${tokResult.vocabSize})`, 'success');
+
+                updateProgress(50);
+                log('Loading model config...');
+                setStatus('loading', 'Loading model weights (~270MB)...');
+
+                // Load config
+                const configResp = await fetch('/models/SmolLM2-135M-Instruct/config.json');
+                const configJSON = await configResp.text();
+
+                // Load weights
+                log('Downloading model weights (this may take a while)...');
+                const weightsResp = await fetch('/models/SmolLM2-135M-Instruct/model.safetensors');
+                const weightsBuffer = await weightsResp.arrayBuffer();
+
+                updateProgress(80);
+                log(`Weights downloaded: ${(weightsBuffer.byteLength / 1024 / 1024).toFixed(1)} MB`);
+                log('Initializing model...');
+
+                const modelResult = JSON.parse(initModel(configJSON, weightsBuffer));
+                if (modelResult.error) throw new Error(modelResult.error);
+
+                updateProgress(100);
+                log(`Model loaded! Hidden: ${modelResult.hiddenSize}, Vocab: ${modelResult.vocabSize}, Layers: ${modelResult.layers}`, 'success');
+                setStatus('ready', `Model ready! (${modelResult.layers} layers)`);
+
+                wasmReady = true;
+                document.getElementById('generateBtn').disabled = false;
+                document.getElementById('trainBtn').disabled = false;
+
+                // Check if backend server is available
+                await checkBackend();
+
+            } catch (err) {
+                log('Error: ' + err.message, 'error');
+                setStatus('error', 'Failed to load: ' + err.message);
+            }
+        }
+
+        async function generateTokens() {
+            if (!wasmReady) {
+                log('WASM model not ready!', 'error');
+                return;
+            }
+
+            const prompt = document.getElementById('promptInput').value;
+            const maxTokens = parseInt(document.getElementById('tokenCount').value);
+            const btn = document.getElementById('generateBtn');
+
+            btn.disabled = true;
+            btn.textContent = 'Generating...';
+
+            log(`Generating ${maxTokens} tokens for: "${prompt}"...`);
+
+            // Clear previous results
+            document.getElementById('wasmOutput').textContent = '';
+            document.getElementById('wasmTokens').innerHTML = '';
+            document.getElementById('backendOutput').textContent = '';
+            document.getElementById('backendTokens').innerHTML = '';
+            document.getElementById('comparisonResult').innerHTML = '';
+
+            // Reset results
+            BACKEND_RESULTS.generatedTokens = [];
+            BACKEND_RESULTS.generatedText = '';
+
+            const wasmTokens = [];
+            let wasmText = '';
+            const wasmOutputEl = document.getElementById('wasmOutput');
+            const wasmTokensEl = document.getElementById('wasmTokens');
+            const backendOutputEl = document.getElementById('backendOutput');
+            const backendTokensEl = document.getElementById('backendTokens');
+
+            let wasmDone = false;
+            let backendDone = !backendReady; // If no backend, mark as done
+            const startTime = performance.now();
+
+            // Start backend SSE stream
+            if (backendReady) {
+                log('[Backend] Starting SSE stream...', 'success');
+                const sse = new EventSource(`/api/generate?prompt=${encodeURIComponent(prompt)}&max_tokens=${maxTokens}`);
+
+                sse.addEventListener('init', (e) => {
+                    const data = JSON.parse(e.data);
+                    log(`[Backend] Initialized with ${data.inputTokens.length} input tokens`);
+                });
+
+                sse.addEventListener('token', (e) => {
+                    const data = JSON.parse(e.data);
+                    BACKEND_RESULTS.generatedTokens.push(data.tokenId);
+                    BACKEND_RESULTS.generatedText += data.tokenText;
+
+                    // Update display
+                    backendOutputEl.textContent = BACKEND_RESULTS.generatedText;
+                    const span = document.createElement('span');
+                    span.className = 'token';
+                    span.textContent = data.tokenId;
+                    backendTokensEl.appendChild(span);
+
+                    log(`[Backend] Token ${data.step}: ${data.tokenId} = "${data.tokenText}"`);
+
+                    // Check for match with WASM if both have same position
+                    checkLiveComparison(wasmTokens, BACKEND_RESULTS.generatedTokens);
+                });
+
+                sse.addEventListener('done', (e) => {
+                    const data = JSON.parse(e.data);
+                    log(`[Backend] Done! ${data.totalTokens} tokens in ${data.elapsedMs}ms (${data.tokensPerSec.toFixed(1)} tok/s)`, 'success');
+                    backendDone = true;
+                    sse.close();
+                    checkAllDone();
+                });
+
+                sse.addEventListener('error', (e) => {
+                    log('[Backend] SSE connection error', 'error');
+                    backendDone = true;
+                    sse.close();
+                    checkAllDone();
+                });
+            } else {
+                log('[Backend] Not available - run: go run server.go');
+            }
+
+            // Start WASM generation
+            const initResult = JSON.parse(initGeneration(prompt, maxTokens));
+            if (initResult.error) {
+                log('[WASM] Init error: ' + initResult.error, 'error');
+                btn.disabled = false;
+                btn.textContent = 'Generate';
+                return;
+            }
+
+            function wasmStep() {
+                const result = JSON.parse(generateStep());
+
+                if (result.error) {
+                    log('[WASM] Error: ' + result.error, 'error');
+                    wasmDone = true;
+                    checkAllDone();
+                    return;
+                }
+
+                if (result.tokenId !== undefined) {
+                    wasmTokens.push(result.tokenId);
+                    wasmText += result.tokenText;
+
+                    wasmOutputEl.textContent = wasmText;
+                    const span = document.createElement('span');
+                    span.className = 'token';
+                    span.textContent = result.tokenId;
+                    wasmTokensEl.appendChild(span);
+
+                    log(`[WASM] Token ${result.step}: ${result.tokenId} = "${result.tokenText}"`);
+
+                    // Check for match with backend if both have same position
+                    checkLiveComparison(wasmTokens, BACKEND_RESULTS.generatedTokens);
+                }
+
+                if (!result.done) {
+                    setTimeout(wasmStep, 0);
+                } else {
+                    const elapsed = performance.now() - startTime;
+                    log(`[WASM] Done! ${wasmTokens.length} tokens in ${elapsed.toFixed(0)}ms (${(wasmTokens.length / elapsed * 1000).toFixed(1)} tok/s)`, 'success');
+                    wasmDone = true;
+                    checkAllDone();
+                }
+            }
+
+            function checkLiveComparison(wasm, backend) {
+                const compareLen = Math.min(wasm.length, backend.length);
+                if (compareLen === 0) return;
+
+                let matches = 0;
+                for (let i = 0; i < compareLen; i++) {
+                    if (wasm[i] === backend[i]) matches++;
+                }
+
+                const resultEl = document.getElementById('comparisonResult');
+                if (matches === compareLen) {
+                    resultEl.innerHTML = `<span class="match">✅ ${matches}/${compareLen} tokens match</span>`;
+                } else {
+                    resultEl.innerHTML = `<span class="mismatch">⚠️ ${matches}/${compareLen} tokens match</span>`;
+                }
+            }
+
+            function checkAllDone() {
+                if (wasmDone && backendDone) {
+                    btn.disabled = false;
+                    btn.textContent = 'Generate';
+
+                    // Final comparison
+                    if (BACKEND_RESULTS.generatedTokens.length > 0) {
+                        compareResults(BACKEND_RESULTS.generatedTokens, wasmTokens);
+                    }
+                }
+            }
+
+            // Start WASM generation
+            wasmStep();
+        }
+
+        function compareResults(expected, actual) {
+            const matches = expected.length === actual.length &&
+                expected.every((t, i) => t === actual[i]);
+
+            const resultEl = document.getElementById('comparisonResult');
+            if (matches) {
+                resultEl.innerHTML = '<span class="match">✅ TOKENS MATCH! WASM and backend produce identical output.</span>';
+                log('Token verification: PASSED', 'success');
+            } else {
+                let diffCount = 0;
+                const maxLen = Math.max(expected.length, actual.length);
+                for (let i = 0; i < maxLen; i++) {
+                    if (expected[i] !== actual[i]) diffCount++;
+                }
+                resultEl.innerHTML = `<span class="mismatch">❌ MISMATCH: ${diffCount} tokens differ</span>`;
+                log(`Token verification: FAILED (${diffCount} differences)`, 'error');
+            }
+        }
+
+        // ============== Training Functions ==============
+
+        async function trainModels() {
+            const trainBtn = document.getElementById('trainBtn');
+            trainBtn.disabled = true;
+            trainBtn.textContent = 'Training...';
+
+            const steps = parseInt(document.getElementById('trainSteps').value);
+            const lr = parseFloat(document.getElementById('learningRate').value);
+            const backendText = document.getElementById('backendTrainText').value;
+            const wasmText = document.getElementById('wasmTrainText').value;
+
+            document.getElementById('trainStatus').textContent = 'Training both models...';
+
+            log('=== Starting Training Demo ===', 'success');
+            log(`Backend text: "${backendText}"`);
+            log(`WASM text: "${wasmText}"`);
+            log(`Steps: ${steps}, LR: ${lr}`);
+
+            // Train both in parallel
+            const backendPromise = trainBackend(backendText, steps, lr);
+            const wasmPromise = trainWASM(wasmText, steps, lr);
+
+            try {
+                await Promise.all([backendPromise, wasmPromise]);
+
+                document.getElementById('trainStatus').innerHTML = '<span style="color: var(--success);">✅ Both models trained! Click "Regenerate" to see divergence.</span>';
+                document.getElementById('regenerateBtn').disabled = false;
+
+                log('=== Training Complete ===', 'success');
+                log('Models are now different! Regenerate tokens to see the divergence.', 'success');
+            } catch (err) {
+                log('Training error: ' + err.message, 'error');
+                document.getElementById('trainStatus').textContent = 'Training failed: ' + err.message;
+            }
+
+            trainBtn.disabled = false;
+            trainBtn.textContent = '🎓 Train Both';
+        }
+
+        async function trainBackend(text, steps, lr) {
+            return new Promise((resolve, reject) => {
+                const body = JSON.stringify({ text, steps, learningRate: lr });
+
+                fetch('/api/train', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body
+                }).then(response => {
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+
+                    function read() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                resolve();
+                                return;
+                            }
+
+                            const text = decoder.decode(value);
+                            const lines = text.split('\n');
+
+                            for (const line of lines) {
+                                if (line.startsWith('data:')) {
+                                    try {
+                                        const data = JSON.parse(line.slice(5));
+                                        if (data.step) {
+                                            log(`[Backend Train] Step ${data.step}: loss=${data.loss.toFixed(4)}`);
+                                        } else if (data.totalSteps) {
+                                            log(`[Backend Train] Done! ${data.totalSteps} steps in ${data.elapsedMs}ms`, 'success');
+                                        }
+                                    } catch (e) { }
+                                }
+                            }
+
+                            read();
+                        }).catch(reject);
+                    }
+
+                    read();
+                }).catch(reject);
+            });
+        }
+
+        async function trainWASM(text, steps, lr) {
+            for (let step = 0; step < steps; step++) {
+                const result = JSON.parse(trainStep(text, lr));
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+                log(`[WASM Train] Step ${step + 1}: loss=${result.avgLoss.toFixed(4)}`);
+
+                // Yield to browser
+                await new Promise(r => setTimeout(r, 0));
+            }
+            log(`[WASM Train] Done! ${steps} steps`, 'success');
+        }
+
+        async function regenerateTokens() {
+            const prompt = document.getElementById('promptInput').value;
+            const maxTokens = parseInt(document.getElementById('tokenCount').value);
+            const regenerateBtn = document.getElementById('regenerateBtn');
+
+            regenerateBtn.disabled = true;
+            regenerateBtn.textContent = 'Regenerating...';
+
+            log('=== Post-Training Generation ===', 'success');
+
+            // Clear post-training outputs
+            document.getElementById('postBackendOutput').textContent = '';
+            document.getElementById('postWasmOutput').textContent = '';
+            document.getElementById('postComparisonResult').innerHTML = '';
+
+            const postBackendTokens = [];
+            const postWasmTokens = [];
+            let postBackendText = '';
+            let postWasmText = '';
+
+            let backendDone = false;
+            let wasmDone = false;
+
+            // Backend generation via SSE
+            const sse = new EventSource(`/api/generate?prompt=${encodeURIComponent(prompt)}&max_tokens=${maxTokens}`);
+
+            sse.addEventListener('token', (e) => {
+                const data = JSON.parse(e.data);
+                postBackendTokens.push(data.tokenId);
+                postBackendText += data.tokenText;
+                document.getElementById('postBackendOutput').textContent = postBackendText;
+            });
+
+            sse.addEventListener('done', (e) => {
+                log('[Post-Train Backend] Generation complete', 'success');
+                backendDone = true;
+                sse.close();
+                checkPostDone();
+            });
+
+            sse.addEventListener('error', () => {
+                backendDone = true;
+                sse.close();
+                checkPostDone();
+            });
+
+            // WASM generation
+            const initResult = JSON.parse(initGeneration(prompt, maxTokens));
+            if (initResult.error) {
+                log('[Post-Train WASM] Error: ' + initResult.error, 'error');
+                wasmDone = true;
+                checkPostDone();
+            } else {
+                function wasmStep() {
+                    const result = JSON.parse(generateStep());
+
+                    if (result.tokenId !== undefined) {
+                        postWasmTokens.push(result.tokenId);
+                        postWasmText += result.tokenText;
+                        document.getElementById('postWasmOutput').textContent = postWasmText;
+                    }
+
+                    if (!result.done) {
+                        setTimeout(wasmStep, 0);
+                    } else {
+                        log('[Post-Train WASM] Generation complete', 'success');
+                        wasmDone = true;
+                        checkPostDone();
+                    }
+                }
+                wasmStep();
+            }
+
+            function checkPostDone() {
+                if (backendDone && wasmDone) {
+                    regenerateBtn.disabled = false;
+                    regenerateBtn.textContent = '🔄 Regenerate After Training';
+
+                    // Compare post-training results
+                    const matches = postBackendTokens.length === postWasmTokens.length &&
+                        postBackendTokens.every((t, i) => t === postWasmTokens[i]);
+
+                    const resultEl = document.getElementById('postComparisonResult');
+                    if (matches) {
+                        resultEl.innerHTML = '<span style="color: var(--success);">✅ Still matching - try more training steps!</span>';
+                    } else {
+                        let diffCount = 0;
+                        const maxLen = Math.max(postBackendTokens.length, postWasmTokens.length);
+                        for (let i = 0; i < maxLen; i++) {
+                            if (postBackendTokens[i] !== postWasmTokens[i]) diffCount++;
+                        }
+                        resultEl.innerHTML = `<span style="color: #f59e0b;">⚡ DIVERGED! ${diffCount}/${maxLen} tokens differ - training worked!</span>`;
+                        log(`Post-training: Models DIVERGED with ${diffCount} different tokens!`, 'success');
+                    }
+                }
+            }
+        }
+
+        // Start loading
+        loadWASM();
+    </script>
+</body>
+
+</html>

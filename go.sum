@@ -1,0 +1,4 @@
+github.com/openfluke/loom v0.0.7 h1:KEpDSlsKiUJX/rkZ0nzOWSY8J0Dbh2I0cs6sxssbESo=
+github.com/openfluke/loom v0.0.7/go.mod h1:MD4jnbwhJ5ld9iWc/f5tmgNnZraAZkodP1DrBfOlsHI=
+github.com/openfluke/webgpu v0.0.2 h1:pI4NzdyM0fyGCWkb/SKkw+y5VaOkViTWaThYtKaHlIo=
+github.com/openfluke/webgpu v0.0.2/go.mod h1:072J6eEkBj9KgFzMY1RMgscUnu3EfTZsQABObSMZy1c=
