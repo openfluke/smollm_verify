@@ -279,6 +279,148 @@
             </div>
         </div>
 
+        <div class="card" style="border: 2px solid #06b6d4;">
+            <h2>🏎️ Speed Comparison: All 11 Numerical Types</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">Watch tokens stream in real-time across float32,
+                float64, float16, int8, int16, int32, int64, uint8, uint16, uint32, uint64</p>
+            <div class="input-group">
+                <input type="text" id="comparePrompt" value="Once upon a time" placeholder="Enter prompt...">
+                <label
+                    style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted);">Tokens:</label>
+                <input type="number" id="compareTokenCount" value="5" min="1" max="25" style="width: 80px;">
+                <label
+                    style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted);">Embeddings:</label>
+                <select id="compareEmbeddings"
+                    style="padding: 0.75rem; border-radius: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text);">
+                    <option value="float32">Float32 (High Precision)</option>
+                    <option value="typed">Typed (Quantized/Matching)</option>
+                </select>
+                <button class="btn" id="compareBtn" onclick="runSpeedComparison()"
+                    style="background: linear-gradient(135deg, #06b6d4, #0891b2);">⚡ Compare Speed</button>
+            </div>
+
+            <!-- Streaming Grid -->
+            <div id="streamingGrid"
+                style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+                <!-- Type cards will be populated dynamically -->
+            </div>
+
+            <!-- Progress indicator -->
+            <div id="compareProgress" style="margin-top: 1rem; display: none;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="color: var(--text-muted);">Generating tokens...</span>
+                    <span id="compareProgressText" style="color: var(--accent);">0/0</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="compareProgressFill"></div>
+                </div>
+            </div>
+
+            <!-- Summary table (shown after completion) -->
+            <div id="compareSummary" style="margin-top: 1.5rem; display: none;">
+                <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--text-muted);">📊 Final Results</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <th
+                                style="text-align: left; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Type</th>
+                            <th
+                                style="text-align: right; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Total (ms)</th>
+                            <th
+                                style="text-align: right; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Tok/sec</th>
+                            <th
+                                style="text-align: right; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Memory</th>
+                            <th
+                                style="text-align: left; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Match?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compareSummaryBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Full Model Comparison Section -->
+        <div class="card" style="border: 2px solid #ef4444;">
+            <h2>🔥 Full Model Conversion: Embeddings + All Weights</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;">Convert the ENTIRE model (embeddings + all layer
+                weights) to different numerical types. Shows memory footprint and speed with full quantization.</p>
+            <div class="input-group">
+                <input type="text" id="fullPrompt" value="The future of AI" placeholder="Enter prompt...">
+                <label
+                    style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted);">Tokens:</label>
+                <input type="number" id="fullTokenCount" value="5" min="1" max="25" style="width: 80px;">
+
+                <label
+                    style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted);">Embeddings:</label>
+                <select id="fullCompareEmbeddings"
+                    style="padding: 0.75rem; border-radius: 8px; background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: var(--text);">
+                    <option value="float32">Float32 (High Precision)</option>
+                    <option value="typed">Typed (Quantized/Matching)</option>
+                </select>
+
+                <button class="btn" id="fullCompareBtn" onclick="runFullModelComparison()"
+                    style="background: linear-gradient(135deg, #ef4444, #dc2626);">🔥 Full Model Compare</button>
+            </div>
+
+            <!-- Memory breakdown -->
+            <div id="fullMemoryBreakdown" style="margin-top: 1rem; display: none;">
+                <h3 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">💾 Model Memory by Type
+                </h3>
+                <div id="fullMemoryGrid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 0.5rem;">
+                </div>
+            </div>
+
+            <!-- Streaming Grid -->
+            <div id="fullStreamingGrid"
+                style="margin-top: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 0.75rem;">
+            </div>
+
+            <!-- Progress -->
+            <div id="fullProgress" style="margin-top: 1rem; display: none;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                    <span style="color: var(--text-muted);">Full model inference...</span>
+                    <span id="fullProgressText" style="color: var(--accent);">0/0</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="fullProgressFill"></div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div id="fullSummary" style="margin-top: 1.5rem; display: none;">
+                <h3 style="font-size: 1rem; margin-bottom: 0.75rem; color: var(--text-muted);">📊 Full Model Results
+                </h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.1);">
+                            <th
+                                style="text-align: left; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Type</th>
+                            <th
+                                style="text-align: right; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Total (ms)</th>
+                            <th
+                                style="text-align: right; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Tok/sec</th>
+                            <th
+                                style="text-align: right; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Model Size</th>
+                            <th
+                                style="text-align: left; padding: 0.5rem; color: var(--text-muted); font-size: 0.85rem;">
+                                Match?</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fullSummaryBody"></tbody>
+                </table>
+            </div>
+        </div>
+
         <div class="card" style="border: 2px solid #f59e0b;">
             <h2>🎓 Training Demo</h2>
             <p style="color: var(--text-muted); margin-bottom: 1rem;">Train WASM and Backend on DIFFERENT text to see
@@ -826,6 +968,315 @@
                     }
                 }
             }
+        }
+
+        // ============== Speed Comparison with SSE Streaming ==============
+
+        const TYPE_COLORS = {
+            'float32': '#6366f1',
+            'float64': '#8b5cf6',
+            'float16': '#a855f7',
+            'int8': '#10b981',
+            'int16': '#06b6d4',
+            'int32': '#14b8a6',
+            'int64': '#0ea5e9',
+            'uint8': '#f59e0b',
+            'uint16': '#f97316',
+            'uint32': '#ef4444',
+            'uint64': '#ec4899'
+        };
+
+        function runSpeedComparison() {
+            const btn = document.getElementById('compareBtn');
+            const prompt = document.getElementById('comparePrompt').value;
+            const maxTokens = parseInt(document.getElementById('compareTokenCount').value) || 5;
+
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+
+            // Reset UI
+            const grid = document.getElementById('streamingGrid');
+            const progress = document.getElementById('compareProgress');
+            const summary = document.getElementById('compareSummary');
+
+            grid.innerHTML = '';
+            summary.style.display = 'none';
+            progress.style.display = 'block';
+            document.getElementById('compareProgressFill').style.width = '0%';
+            document.getElementById('compareProgressText').textContent = `0/${maxTokens}`;
+
+            log(`🏎️ Streaming comparison: "${prompt}" (${maxTokens} tokens)...`);
+
+            // State tracking for all types
+            const typeState = {};
+            let currentStep = 0;
+            let types = [];
+
+            // Start SSE connection
+            const embeddingMode = document.getElementById('compareEmbeddings').value;
+            const useTyped = embeddingMode === 'typed';
+            const url = `/api/compare?prompt=${encodeURIComponent(prompt)}&max_tokens=${maxTokens}&use_typed_embeddings=${useTyped}`;
+            const sse = new EventSource(url);
+
+            sse.addEventListener('init', (e) => {
+                const data = JSON.parse(e.data);
+                types = data.types || [];
+
+                // Create type cards
+                for (const typeName of types) {
+                    const color = TYPE_COLORS[typeName] || '#6366f1';
+                    typeState[typeName] = { text: '', totalMs: 0, tokens: [] };
+
+                    const card = document.createElement('div');
+                    card.id = `type-card-${typeName}`;
+                    card.style.cssText = `
+                        background: rgba(0,0,0,0.3);
+                        border: 1px solid ${color}40;
+                        border-radius: 8px;
+                        padding: 0.75rem;
+                        position: relative;
+                        overflow: hidden;
+                    `;
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600; color: ${color};">${typeName}</span>
+                            <span id="type-time-${typeName}" style="font-size: 0.75rem; color: var(--text-muted);">0ms</span>
+                        </div>
+                        <div id="type-text-${typeName}" style="font-family: monospace; font-size: 0.8rem; min-height: 40px; color: var(--text); word-break: break-all;"></div>
+                    `;
+                    grid.appendChild(card);
+                }
+
+                log(`   Initialized ${types.length} types: ${types.join(', ')}`);
+            });
+
+            sse.addEventListener('step', (e) => {
+                const data = JSON.parse(e.data);
+                currentStep = data.step;
+
+                // Update progress
+                const pct = (currentStep / maxTokens) * 100;
+                document.getElementById('compareProgressFill').style.width = `${pct}%`;
+                document.getElementById('compareProgressText').textContent = `${currentStep}/${maxTokens}`;
+
+                // Update each type card
+                for (const result of data.results) {
+                    const typeName = result.type;
+                    const state = typeState[typeName];
+                    if (!state) continue;
+
+                    state.text = result.totalText || (state.text + (result.tokenText || ''));
+                    state.totalMs += result.durationMs || 0;
+                    state.tokens.push(result.token);
+
+                    const textEl = document.getElementById(`type-text-${typeName}`);
+                    const timeEl = document.getElementById(`type-time-${typeName}`);
+
+                    if (textEl) textEl.textContent = state.text;
+                    if (timeEl) timeEl.textContent = `${state.totalMs.toFixed(1)}ms`;
+                }
+            });
+
+            sse.addEventListener('done', (e) => {
+                const data = JSON.parse(e.data);
+                sse.close();
+
+                progress.style.display = 'none';
+                summary.style.display = 'block';
+
+                const tbody = document.getElementById('compareSummaryBody');
+                tbody.innerHTML = '';
+
+                // Get baseline text for matching
+                const baselineText = data.results[0]?.finalText || '';
+
+                for (const result of data.results) {
+                    const color = TYPE_COLORS[result.type] || '#6366f1';
+                    const memoryMB = (result.memoryBytes / (1024 * 1024)).toFixed(1);
+                    const tokPerSec = result.tokensPerSec?.toFixed(1) || 'N/A';
+                    const matches = result.finalText === baselineText;
+
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    row.innerHTML = `
+                        <td style="padding: 0.5rem;">
+                            <span style="display: inline-block; width: 8px; height: 8px; background: ${color}; border-radius: 2px; margin-right: 0.5rem;"></span>
+                            ${result.type}
+                        </td>
+                        <td style="text-align: right; padding: 0.5rem; font-family: monospace;">${result.totalMs?.toFixed(1) || 'N/A'}</td>
+                        <td style="text-align: right; padding: 0.5rem; font-family: monospace;">${tokPerSec}</td>
+                        <td style="text-align: right; padding: 0.5rem; font-family: monospace;">${memoryMB} MB</td>
+                        <td style="padding: 0.5rem; color: ${matches ? 'var(--success)' : 'var(--error)'};">${matches ? '✓' : '✗'}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+
+                btn.disabled = false;
+                btn.textContent = '⚡ Compare Speed';
+                log(`🏎️ Comparison complete! ${maxTokens} tokens across ${types.length} types`, 'success');
+            });
+
+            sse.addEventListener('error', () => {
+                sse.close();
+                btn.disabled = false;
+                btn.textContent = '⚡ Compare Speed';
+                log('Speed comparison connection error', 'error');
+            });
+        }
+
+        // ============== Full Model Comparison ==============
+
+        function runFullModelComparison() {
+            const btn = document.getElementById('fullCompareBtn');
+            const prompt = document.getElementById('fullPrompt').value;
+            const maxTokens = parseInt(document.getElementById('fullTokenCount').value) || 5;
+
+            btn.disabled = true;
+            btn.textContent = 'Running...';
+
+            // Reset UI
+            const grid = document.getElementById('fullStreamingGrid');
+            const progress = document.getElementById('fullProgress');
+            const summary = document.getElementById('fullSummary');
+            const memBreakdown = document.getElementById('fullMemoryBreakdown');
+            const memGrid = document.getElementById('fullMemoryGrid');
+
+            grid.innerHTML = '';
+            memGrid.innerHTML = '';
+            summary.style.display = 'none';
+            progress.style.display = 'block';
+            memBreakdown.style.display = 'none';
+            document.getElementById('fullProgressFill').style.width = '0%';
+            document.getElementById('fullProgressText').textContent = `0/${maxTokens}`;
+
+            log(`🔥 Full model comparison: "${prompt}" (${maxTokens} tokens, native types)...`);
+
+            const typeState = {};
+            let currentStep = 0;
+            let types = [];
+
+            const embeddingMode = document.getElementById('fullCompareEmbeddings').value;
+            const useTyped = embeddingMode === 'typed';
+            const url = `/api/compare_full?prompt=${encodeURIComponent(prompt)}&max_tokens=${maxTokens}&use_typed_embeddings=${useTyped}`;
+            const sse = new EventSource(url);
+
+            sse.addEventListener('init', (e) => {
+                const data = JSON.parse(e.data);
+                types = data.types || [];
+
+                // Show memory breakdown
+                memBreakdown.style.display = 'block';
+                for (const mem of data.memory) {
+                    const color = TYPE_COLORS[mem.type] || '#6366f1';
+                    const memDiv = document.createElement('div');
+                    memDiv.style.cssText = `
+                        background: ${color}20;
+                        border: 1px solid ${color}40;
+                        border-radius: 6px;
+                        padding: 0.5rem;
+                        text-align: center;
+                    `;
+                    memDiv.innerHTML = `
+                        <div style="font-weight: 600; color: ${color}; font-size: 0.85rem;">${mem.type}</div>
+                        <div style="font-size: 1.1rem; font-weight: bold;">${mem.memoryMB.toFixed(1)} MB</div>
+                    `;
+                    memGrid.appendChild(memDiv);
+                }
+
+                log(`   Total weights: ${data.totalWeights.toLocaleString()}`);
+
+                // Create type cards
+                for (const typeName of types) {
+                    const color = TYPE_COLORS[typeName] || '#6366f1';
+                    typeState[typeName] = { text: '', totalMs: 0, tokens: [] };
+
+                    const card = document.createElement('div');
+                    card.id = `full-type-${typeName}`;
+                    card.style.cssText = `
+                        background: rgba(0,0,0,0.3);
+                        border: 1px solid ${color}40;
+                        border-radius: 8px;
+                        padding: 0.75rem;
+                    `;
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
+                            <span style="font-weight: 600; color: ${color};">${typeName}</span>
+                            <span id="full-time-${typeName}" style="font-size: 0.75rem; color: var(--text-muted);">0ms</span>
+                        </div>
+                        <div id="full-text-${typeName}" style="font-family: monospace; font-size: 0.8rem; min-height: 40px; color: var(--text); word-break: break-all;"></div>
+                    `;
+                    grid.appendChild(card);
+                }
+            });
+
+            sse.addEventListener('step', (e) => {
+                const data = JSON.parse(e.data);
+                currentStep = data.step;
+
+                const pct = (currentStep / maxTokens) * 100;
+                document.getElementById('fullProgressFill').style.width = `${pct}%`;
+                document.getElementById('fullProgressText').textContent = `${currentStep}/${maxTokens}`;
+
+                for (const result of data.results) {
+                    const typeName = result.type;
+                    const state = typeState[typeName];
+                    if (!state) continue;
+
+                    state.text = result.totalText || (state.text + (result.tokenText || ''));
+                    state.totalMs += result.durationMs || 0;
+
+                    const textEl = document.getElementById(`full-text-${typeName}`);
+                    const timeEl = document.getElementById(`full-time-${typeName}`);
+
+                    if (textEl) textEl.textContent = state.text;
+                    if (timeEl) timeEl.textContent = `${state.totalMs.toFixed(1)}ms`;
+                }
+            });
+
+            sse.addEventListener('done', (e) => {
+                const data = JSON.parse(e.data);
+                sse.close();
+
+                progress.style.display = 'none';
+                summary.style.display = 'block';
+
+                const tbody = document.getElementById('fullSummaryBody');
+                tbody.innerHTML = '';
+
+                const baselineText = data.results[0]?.finalText || '';
+
+                for (const result of data.results) {
+                    const color = TYPE_COLORS[result.type] || '#6366f1';
+                    const memoryMB = (result.memoryMB || result.memoryBytes / (1024 * 1024)).toFixed(1);
+                    const tokPerSec = result.tokensPerSec?.toFixed(1) || 'N/A';
+                    const matches = result.finalText === baselineText;
+
+                    const row = document.createElement('tr');
+                    row.style.borderBottom = '1px solid rgba(255,255,255,0.05)';
+                    row.innerHTML = `
+                        <td style="padding: 0.5rem;">
+                            <span style="display: inline-block; width: 8px; height: 8px; background: ${color}; border-radius: 2px; margin-right: 0.5rem;"></span>
+                            ${result.type}
+                        </td>
+                        <td style="text-align: right; padding: 0.5rem; font-family: monospace;">${result.totalMs?.toFixed(1) || 'N/A'}</td>
+                        <td style="text-align: right; padding: 0.5rem; font-family: monospace;">${tokPerSec}</td>
+                        <td style="text-align: right; padding: 0.5rem; font-family: monospace;">${memoryMB} MB</td>
+                        <td style="padding: 0.5rem; color: ${matches ? 'var(--success)' : 'var(--error)'};">${matches ? '✓' : '✗'}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+
+                btn.disabled = false;
+                btn.textContent = '🔥 Full Model Compare';
+                log(`🔥 Full model comparison complete! ${maxTokens} tokens across ${types.length} types`, 'success');
+            });
+
+            sse.addEventListener('error', () => {
+                sse.close();
+                btn.disabled = false;
+                btn.textContent = '🔥 Full Model Compare';
+                log('Full model comparison error', 'error');
+            });
         }
 
         // Start loading
